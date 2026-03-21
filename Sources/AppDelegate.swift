@@ -47,6 +47,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         }
     }
 
+    func popoverShouldClose(_ popover: NSPopover) -> Bool {
+        return !NSColorPanel.shared.isVisible
+    }
+
     func popoverDidClose(_ notification: Notification) {
         NotificationCenter.default.post(name: Notification.Name("PopoverDidClose"), object: nil)
     }

@@ -5,7 +5,6 @@ struct ClaudeHooksView: View {
 
     private let cliPath = Bundle.main.bundlePath + "/Contents/Resources/maclotus"
 
-    @State private var hooksInstalled = false
     @State private var statusMessage: String? = nil
     @State private var statusIsError = false
 
@@ -48,21 +47,13 @@ struct ClaudeHooksView: View {
 
                     Divider()
 
-                    section("Status") {
+                    section("Actions") {
                         HStack(spacing: 8) {
-                            Circle()
-                                .fill(hooksInstalled ? Color.green : Color.gray)
-                                .frame(width: 8, height: 8)
-                            Text(hooksInstalled ? "Hooks are installed" : "Hooks are not installed")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-
-                        Button(hooksInstalled ? "Uninstall Hooks" : "Install Hooks") {
-                            if hooksInstalled {
-                                uninstallHooks()
-                            } else {
+                            Button("Reinstall Hooks") {
                                 installHooks()
+                            }
+                            Button("Uninstall Hooks") {
+                                uninstallHooks()
                             }
                         }
                         .padding(.top, 4)
@@ -80,7 +71,7 @@ struct ClaudeHooksView: View {
 
                     section("Notes") {
                         VStack(alignment: .leading, spacing: 6) {
-                            bullet("Installing replaces the entire `hooks` key in settings.json.")
+                            bullet("Installing merges maclotus hooks into settings.json without affecting other hooks.")
                             bullet("Other settings (model, statusLine, etc.) are preserved.")
                             bullet("The CLI binary path is derived from the current app location.")
                         }
@@ -90,21 +81,9 @@ struct ClaudeHooksView: View {
             }
         }
         .frame(width: 480, height: 520)
-        .onAppear { checkHooksInstalled() }
     }
 
-    // MARK: - Hook check/install/uninstall
-
-    private func checkHooksInstalled() {
-        guard let data = try? Data(contentsOf: URL(fileURLWithPath: settingsPath)),
-              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let hooks = json["hooks"] as? [String: Any] else {
-            hooksInstalled = false
-            return
-        }
-        let allValues = String(describing: hooks)
-        hooksInstalled = allValues.contains("maclotus")
-    }
+    // MARK: - Install/Uninstall
 
     private func installHooks() {
         let claudeDir = NSHomeDirectory() + "/.claude"
@@ -121,12 +100,20 @@ struct ClaudeHooksView: View {
                 existing = json
             }
 
-            existing["hooks"] = buildHooksPayload()
+            var hooksDict = existing["hooks"] as? [String: Any] ?? [:]
+
+            for (event, newMatchers) in buildHooksPayload() {
+                var existingMatchers = hooksDict[event] as? [[String: Any]] ?? []
+                existingMatchers = existingMatchers.filter { !containsMaclotus($0) }
+                existingMatchers += newMatchers as! [[String: Any]]
+                hooksDict[event] = existingMatchers
+            }
+
+            existing["hooks"] = hooksDict
 
             let data = try JSONSerialization.data(withJSONObject: existing, options: [.prettyPrinted, .sortedKeys])
             try data.write(to: URL(fileURLWithPath: settingsPath))
 
-            hooksInstalled = true
             statusIsError = false
             statusMessage = "Hooks installed successfully."
         } catch {
@@ -142,23 +129,44 @@ struct ClaudeHooksView: View {
                       let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }
                 return json
             }() else {
-                hooksInstalled = false
                 statusIsError = false
                 statusMessage = "Hooks removed (settings file not found)."
                 return
             }
 
-            existing.removeValue(forKey: "hooks")
+            if var hooksDict = existing["hooks"] as? [String: Any] {
+                for event in Array(hooksDict.keys) {
+                    if var matchers = hooksDict[event] as? [[String: Any]] {
+                        matchers = matchers.filter { !containsMaclotus($0) }
+                        if matchers.isEmpty {
+                            hooksDict.removeValue(forKey: event)
+                        } else {
+                            hooksDict[event] = matchers
+                        }
+                    }
+                }
+                if hooksDict.isEmpty {
+                    existing.removeValue(forKey: "hooks")
+                } else {
+                    existing["hooks"] = hooksDict
+                }
+            }
 
             let data = try JSONSerialization.data(withJSONObject: existing, options: [.prettyPrinted, .sortedKeys])
             try data.write(to: URL(fileURLWithPath: settingsPath))
 
-            hooksInstalled = false
             statusIsError = false
             statusMessage = "Hooks uninstalled successfully."
         } catch {
             statusIsError = true
             statusMessage = "Failed to uninstall hooks: \(error.localizedDescription)"
+        }
+    }
+
+    private func containsMaclotus(_ matcher: [String: Any]) -> Bool {
+        guard let hooks = matcher["hooks"] as? [[String: Any]] else { return false }
+        return hooks.contains { hook in
+            (hook["command"] as? String)?.contains("maclotus") == true
         }
     }
 

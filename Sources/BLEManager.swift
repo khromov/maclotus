@@ -140,6 +140,10 @@ class BLEManager: NSObject, ObservableObject {
 
     func sendColor(_ color: Color) {
         stopBreathing()
+        if !isPoweredOn {
+            isPoweredOn = true
+            sendCommand(LampCommand.powerOn)
+        }
         currentColor = color
         activeEffectID = nil
         let (r, g, b) = color.rgbComponents
