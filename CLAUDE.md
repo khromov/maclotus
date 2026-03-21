@@ -31,11 +31,14 @@ No test targets exist in this project.
 Two targets share core BLE protocol files:
 
 **macOS Status Bar App (`Sources/` directory)**
+- `MacLotusApp.swift` — `@main` SwiftUI entry; bridges to `AppDelegate` via `@NSApplicationDelegateAdaptor`
 - `AppDelegate.swift` — `NSStatusItem` + `NSPopover`; creates `BLEManager` and passes it as an `@EnvironmentObject`
 - `BLEManager.swift` — `ObservableObject` wrapping `CoreBluetooth`; holds all lamp state locally (write-only BLE protocol means no read-back from device)
 - `LampCommand.swift` — static factory for all 9-byte BLE packets (`7E … EF`)
 - `BLEConstants.swift` — service/characteristic UUIDs and filtering rules
 - `Views/MainPopoverView.swift` → `ConnectionView.swift` + `ControlsView.swift` — SwiftUI popover UI
+- `Views/CLIHelpView.swift` — in-app sheet with CLI installation/usage instructions
+- `Views/ClaudeHooksView.swift` — installs/uninstalls Claude Code hooks into `~/.claude/settings.json`; hooks change lamp color on Claude session events (SessionStart→yellow, UserPromptSubmit→green, Stop/Notification→orange, SessionEnd→off); merges into existing settings without clobbering other keys
 - `PresetColor.swift`, `EffectMode.swift` — data types for UI color/effect pickers
 
 **CLI (`CLI/` sources)**
