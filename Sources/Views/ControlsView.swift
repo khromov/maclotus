@@ -5,6 +5,10 @@ struct ControlsView: View {
 
     private let columns = Array(repeating: GridItem(.flexible(), spacing: 6), count: 4)
 
+    @State private var red: Double = 255
+    @State private var green: Double = 255
+    @State private var blue: Double = 255
+
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             powerSection
@@ -45,17 +49,50 @@ struct ControlsView: View {
     // MARK: - Color
 
     private var colorSection: some View {
-        HStack {
-            Text("Color")
-                .font(.headline)
-            Spacer()
-            ColorPicker("", selection: Binding(
-                get: { ble.currentColor },
-                set: { ble.sendColor($0) }
-            ), supportsOpacity: false)
-            .labelsHidden()
-            .frame(width: 44, height: 28)
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text("Color")
+                    .font(.headline)
+                Spacer()
+                RoundedRectangle(cornerRadius: 4)
+                    .fill(ble.currentColor)
+                    .frame(width: 44, height: 22)
+                    .overlay(RoundedRectangle(cornerRadius: 4).stroke(Color.primary.opacity(0.2), lineWidth: 1))
+            }
+            colorSliderRow(label: "R", value: $red, tint: .red)
+            colorSliderRow(label: "G", value: $green, tint: .green)
+            colorSliderRow(label: "B", value: $blue, tint: .blue)
         }
+        .onAppear { syncSlidersFromColor(ble.currentColor) }
+        .onChange(of: ble.currentColor) { syncSlidersFromColor($0) }
+        .onChange(of: red) { _ in sendCurrentColor() }
+        .onChange(of: green) { _ in sendCurrentColor() }
+        .onChange(of: blue) { _ in sendCurrentColor() }
+    }
+
+    private func colorSliderRow(label: String, value: Binding<Double>, tint: Color) -> some View {
+        HStack(spacing: 6) {
+            Text(label)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .frame(width: 12)
+            Slider(value: value, in: 0...255, step: 1)
+                .tint(tint)
+            Text("\(Int(value.wrappedValue))")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .monospacedDigit()
+                .frame(width: 28, alignment: .trailing)
+        }
+    }
+
+    private func syncSlidersFromColor(_ color: Color) {
+        let (r, g, b) = color.rgbComponents
+        red = Double(r); green = Double(g); blue = Double(b)
+    }
+
+    private func sendCurrentColor() {
+        ble.sendColor(Color(red: red / 255, green: green / 255, blue: blue / 255))
     }
 
     // MARK: - Brightness

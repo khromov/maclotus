@@ -341,7 +341,7 @@ extension BLEManager: CBPeripheralDelegate {
 
 // MARK: - Color helper
 
-private extension Color {
+extension Color {
     var rgbComponents: (r: UInt8, g: UInt8, b: UInt8) {
         let nsColor = NSColor(self).usingColorSpace(.deviceRGB) ?? NSColor(self)
         let r = UInt8(max(0, min(255, Int(nsColor.redComponent * 255))))
