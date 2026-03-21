@@ -63,7 +63,7 @@ struct ColorCommand: ParsableCommand {
     func run() throws {
         let (r, g, b) = try parseColor(colorValue)
         let manager = CLIBLEManager(deviceName: options.device)
-        manager.execute(command: LampCommand.setColor(r: r, g: g, b: b))
+        manager.executeSequence(commands: [LampCommand.setBrightness(100), LampCommand.setColor(r: r, g: g, b: b)], interval: 0.1)
     }
 }
 
